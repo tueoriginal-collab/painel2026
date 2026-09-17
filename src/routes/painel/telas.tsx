@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -266,11 +266,19 @@ function Telas() {
                     onChange={(e) => setHtml(e.target.value)}
                   />
                 </div>
-                <iframe
-                  title="previa"
-                  srcDoc={html}
-                  className="h-40 w-full rounded-lg border border-border bg-black"
-                />
+                <div className="space-y-2">
+                  <Label>Prévia</Label>
+                  <div className="flex items-center justify-center rounded-lg border border-border bg-[linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_8%,transparent),color-mix(in_oklab,var(--color-neon-purple)_8%,transparent))] py-6">
+                    <div className="relative h-[300px] w-[165px] overflow-hidden rounded-[22px] border-2 border-white/15 bg-black shadow-[0_10px_30px_rgba(0,0,0,0.55)]">
+                      <iframe
+                        title="previa"
+                        srcDoc={html}
+                        className="pointer-events-none h-[500px] w-[275px] origin-top-left border-0 bg-black"
+                        style={{ transform: "scale(0.6)" }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button onClick={save}>Salvar</Button>
@@ -280,79 +288,106 @@ function Telas() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {screens.map((s, i) => (
-          <Card key={s.id} className={s.is_active ? "ring-2 ring-primary" : undefined}>
-            <CardContent className="space-y-3 p-4">
-              <iframe
-                title={s.name}
-                srcDoc={s.html}
-                className="pointer-events-none h-36 w-full rounded-lg border border-border bg-black"
-              />
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate font-medium">
-                    <span className="mr-2 text-xs text-muted-foreground">{i + 1}</span>
-                    {s.name}
-                  </p>
-                  {s.is_active && (
-                    <p className="flex items-center gap-1 text-xs text-primary">
-                      <Radio className="size-3" /> no ar agora
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant={s.is_active ? "secondary" : "default"}
-                    onClick={() => void activate(s)}
-                  >
-                    {s.is_active ? "Desativar" : "Ativar"}
-                  </Button>
-                </div>
+          <Card
+            key={s.id}
+            className={`group relative flex flex-col overflow-hidden p-0 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_0_25px_color-mix(in_oklab,var(--color-primary)_18%,transparent),0_4px_20px_rgba(0,0,0,0.35)] ${
+              s.is_active ? "border-primary/70 ring-1 ring-primary/40" : ""
+            }`}
+          >
+            {/* faixa neon no topo (aparece no hover) */}
+            <span className="pointer-events-none absolute inset-x-0 top-0 z-20 h-0.5 bg-gradient-to-r from-primary to-[var(--color-neon-purple)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+            {/* área de preview — moldura de celular com a tela real */}
+            <div className="relative flex h-48 items-center justify-center overflow-hidden border-b border-border bg-[linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_8%,transparent),color-mix(in_oklab,var(--color-neon-purple)_8%,transparent))]">
+              <span className="absolute left-2.5 top-2.5 z-10 flex size-6 items-center justify-center rounded-md border border-primary/30 bg-black/60 text-xs font-semibold text-primary backdrop-blur">
+                {i + 1}
+              </span>
+              {s.is_active && (
+                <span className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 rounded-md border border-primary/30 bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary backdrop-blur">
+                  <Radio className="size-2.5 animate-pulse" /> no ar
+                </span>
+              )}
+              <div className="relative h-[156px] w-[86px] overflow-hidden rounded-[16px] border-2 border-white/15 bg-black shadow-[0_8px_24px_rgba(0,0,0,0.55)] transition-transform duration-300 group-hover:scale-105">
+                <iframe
+                  title={s.name}
+                  srcDoc={s.html}
+                  tabIndex={-1}
+                  className="pointer-events-none h-[390px] w-[215px] origin-top-left border-0 bg-black"
+                  style={{ transform: "scale(0.4)" }}
+                />
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setEditing(s);
-                    setName(s.name);
-                    setHtml(s.html);
-                    setOpen(true);
-                  }}
-                >
-                  Editar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={async () => {
-                    await supabase
-                      .from("screens")
-                      .insert({ user_id: targetId, name: `${s.name} (cópia)`, html: s.html });
-                    invalidate();
-                  }}
-                >
-                  Duplicar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    await supabase.from("screens").delete().eq("id", s.id);
-                    invalidate();
-                  }}
-                >
-                  <Trash2 className="size-4" />
-                </Button>
-              </div>
-            </CardContent>
+            </div>
+
+            {/* nome + status */}
+            <div className="flex-1 px-4 pb-2 pt-3">
+              <h4 className="truncate font-medium text-foreground">{s.name}</h4>
+              {s.is_active ? (
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-primary [text-shadow:0_0_6px_color-mix(in_oklab,var(--color-primary)_35%,transparent)]">
+                  <Radio className="size-3" /> no ar agora
+                </p>
+              ) : (
+                <p className="mt-0.5 text-xs text-muted-foreground">inativa</p>
+              )}
+            </div>
+
+            {/* ações */}
+            <div className="flex gap-1.5 border-t border-border px-3 py-3">
+              <Button
+                size="sm"
+                className="flex-1"
+                variant={s.is_active ? "secondary" : "default"}
+                onClick={() => void activate(s)}
+              >
+                {s.is_active ? "Desativar" : "Ativar"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setEditing(s);
+                  setName(s.name);
+                  setHtml(s.html);
+                  setOpen(true);
+                }}
+              >
+                Editar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  await supabase
+                    .from("screens")
+                    .insert({ user_id: targetId, name: `${s.name} (cópia)`, html: s.html });
+                  invalidate();
+                }}
+              >
+                Duplicar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label="Excluir tela"
+                onClick={async () => {
+                  await supabase.from("screens").delete().eq("id", s.id);
+                  invalidate();
+                }}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
           </Card>
         ))}
-        {screens.length === 0 && <p className="text-muted-foreground">Nenhuma tela salva ainda.</p>}
+        {screens.length === 0 && (
+          <div className="col-span-full rounded-lg border border-dashed border-border bg-card/40 px-6 py-16 text-center">
+            <Radio className="mx-auto mb-4 size-10 text-primary [filter:drop-shadow(0_0_16px_color-mix(in_oklab,var(--color-primary)_50%,transparent))]" />
+            <p className="text-sm text-muted-foreground">
+              Nenhuma tela salva ainda. Clique em <span className="text-foreground">Nova tela</span> para criar a primeira.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

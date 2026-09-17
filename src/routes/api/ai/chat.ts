@@ -32,18 +32,18 @@ export const Route = createFileRoute("/api/ai/chat")({
           stream?: boolean;
         };
 
-        if (!process.env["LOVABLE_API_KEY"]) {
+        if (!process.env["OPENAI_API_KEY"]) {
           return new Response("Serviço de IA não configurado", { status: 503 });
         }
 
-        const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const res = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Lovable-API-Key": process.env["LOVABLE_API_KEY"] ?? "",
+            Authorization: `Bearer ${process.env["OPENAI_API_KEY"] ?? ""}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
+            model: "gpt-4o-mini",
             stream: body.stream !== false,
             messages: [
               {

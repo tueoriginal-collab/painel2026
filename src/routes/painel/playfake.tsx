@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Download,
@@ -239,7 +239,7 @@ function PlayFake() {
                 value={data.developer}
                 onChange={(v) => set("developer", v)}
               />
-              <Field label="Ícone (URL)" value={data.icon} onChange={(v) => set("icon", v)} />
+              <IconUpload value={data.icon} onChange={(v) => set("icon", v)} />
               <Field label="Nota" value={data.rating} onChange={(v) => set("rating", v)} />
               <Field
                 label="Avaliações"
@@ -378,6 +378,81 @@ function Field({
     <div className="space-y-2">
       <Label>{label}</Label>
       <Input value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+function IconUpload({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file?: File) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Envie um arquivo de imagem (PNG, JPG, etc.).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Imagem muito grande. Use uma imagem de até 2 MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      onChange(String(reader.result));
+      toast.success("Logo carregado.");
+    };
+    reader.onerror = () => toast.error("Não foi possível ler a imagem.");
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>Logo do app</Label>
+      <div className="flex items-center gap-3">
+        {value ? (
+          <img
+            src={value}
+            alt="Logo"
+            className="size-16 rounded-2xl border border-border object-cover"
+          />
+        ) : (
+          <div className="flex size-16 items-center justify-center rounded-2xl border border-dashed border-border text-muted-foreground">
+            <ImageIcon className="size-6" />
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFile(e.target.files?.[0])}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+          >
+            <ImageIcon className="mr-2 size-4" /> Enviar foto
+          </Button>
+          {value && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange("")}
+            >
+              Remover
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

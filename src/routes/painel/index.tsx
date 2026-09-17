@@ -1,18 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Copy, QrCode, Activity, Users, MonitorPlay } from "lucide-react";
-import { toast } from "sonner";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowRight, MonitorPlay, Sparkles, Store, Users } from "lucide-react";
 
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { hasModule, useAuth } from "@/lib/auth";
+import { Card } from "@/components/ui/card";
 
 export const Route = createFileRoute("/painel/")({
   head: () => ({
     meta: [
-      { title: "Visão geral — Ghost Copier" },
-      { name: "description", content: "Resumo de telas, páginas e atividade do painel." },
+      { title: "Início — Ghost Copier" },
+      { name: "description", content: "Escolha um módulo para começar." },
     ],
   }),
   component: Home,
@@ -20,118 +16,83 @@ export const Route = createFileRoute("/painel/")({
 
 function Home() {
   const { profile, isAdmin } = useAuth();
-  const link =
-    typeof window !== "undefined" && profile
-      ? `${window.location.origin}/user/livescreen/${profile.username}`
-      : "";
+  const name = profile?.display_name || profile?.username || "";
 
-  const { data: stats } = useQuery({
-    queryKey: ["stats", isAdmin],
-    queryFn: async () => {
-      const since = new Date(Date.now() - 864e5).toISOString();
-      const [users, live, acts, activity] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
-        supabase.from("screens").select("id", { count: "exact", head: true }).eq("is_active", true),
-        supabase
-          .from("activity_log")
-          .select("id", { count: "exact", head: true })
-          .gte("created_at", since),
-        supabase
-          .from("activity_log")
-          .select("action,detail,created_at")
-          .order("created_at", { ascending: false })
-          .limit(8),
-      ]);
-      return {
-        users: users.count ?? 0,
-        live: live.count ?? 0,
-        acts: acts.count ?? 0,
-        activity: activity.data ?? [],
-      };
+  const options = [
+    {
+      to: "/painel/playfake",
+      label: "Play Fake",
+      desc: "Crie páginas realistas no estilo Play Store.",
+      icon: Store,
+      mod: "playfake" as string | null,
     },
-  });
-
-  const cards = [
-    { label: "Usuários", value: stats?.users ?? 0, icon: Users },
-    { label: "Telas no ar agora", value: stats?.live ?? 0, icon: MonitorPlay },
-    { label: "Trocas em 24h", value: stats?.acts ?? 0, icon: Activity },
-  ];
+    {
+      to: "/painel/telas",
+      label: "Telas Pretas",
+      desc: "Monte e controle telas em tempo real.",
+      icon: MonitorPlay,
+      mod: "telas" as string | null,
+    },
+    {
+      to: "/painel/ia",
+      label: "Assistente IA",
+      desc: "Gere textos, ideias e conteúdo na hora.",
+      icon: Sparkles,
+      mod: "ia" as string | null,
+    },
+    ...(isAdmin
+      ? [
+          {
+            to: "/painel/usuarios",
+            label: "Usuários",
+            desc: "Gerencie acessos e permissões.",
+            icon: Users,
+            mod: null as string | null,
+          },
+        ]
+      : []),
+  ].filter((o) => !o.mod || hasModule(profile, isAdmin, o.mod));
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Olá, {profile?.display_name || profile?.username}
+    <div className="space-y-10">
+      <header className="pt-6 text-center md:pt-10">
+        <p className="font-display text-xs uppercase tracking-[0.35em] text-primary/70">
+          Ghost Copier
+        </p>
+        <h1 className="font-display mt-3 text-4xl font-extrabold leading-tight tracking-tight text-primary [text-shadow:0_0_18px_color-mix(in_oklab,var(--color-primary)_60%,transparent),0_0_40px_color-mix(in_oklab,var(--color-neon-purple)_35%,transparent)] md:text-6xl">
+          Bem-vindo{name ? "," : ""}
+          {name ? <span className="mt-1 block">{name}</span> : null}
         </h1>
-        <p className="text-sm text-muted-foreground">Resumo rápido da sua operação.</p>
+        <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
+          Escolha abaixo o que você quer usar.
+        </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {cards.map((c) => (
-          <Card key={c.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{c.label}</CardTitle>
-              <c.icon className="size-4 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-bold">{c.value}</p>
-            </CardContent>
-          </Card>
+      <div className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-2">
+        {options.map((o) => (
+          <Link key={o.to} to={o.to} className="group block">
+            <Card className="relative flex h-full items-start gap-4 overflow-hidden p-6 transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:shadow-[0_0_28px_color-mix(in_oklab,var(--color-primary)_20%,transparent),0_6px_24px_rgba(0,0,0,0.35)]">
+              <span className="pointer-events-none absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary to-[var(--color-neon-purple)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary shadow-[0_0_18px_color-mix(in_oklab,var(--color-primary)_18%,transparent)] transition-transform duration-300 group-hover:scale-105">
+                <o.icon className="size-6" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="font-display text-lg font-bold text-foreground">{o.label}</h2>
+                  <ArrowRight className="size-4 text-primary/70 transition-transform duration-300 group-hover:translate-x-1" />
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{o.desc}</p>
+              </div>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Seu link de visualização</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-4">
-          <code className="min-w-0 flex-1 truncate rounded-lg bg-muted px-3 py-2 text-xs">
-            {link}
-          </code>
-          <Button
-            variant="outline"
-            onClick={() => {
-              void navigator.clipboard.writeText(link);
-              toast.success("Link copiado.");
-            }}
-          >
-            <Copy className="mr-2 size-4" /> Copiar
-          </Button>
-          {link && (
-            <a
-              href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Button variant="outline">
-                <QrCode className="mr-2 size-4" /> QR code
-              </Button>
-            </a>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Registro de atividade</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          {(stats?.activity ?? []).length === 0 && (
-            <p className="text-muted-foreground">Nada registrado ainda.</p>
-          )}
-          {(stats?.activity ?? []).map((a, i) => (
-            <div key={i} className="flex justify-between gap-4 border-b border-border/60 pb-2">
-              <span>
-                {a.action}{" "}
-                {a.detail ? <span className="text-muted-foreground">— {a.detail}</span> : null}
-              </span>
-              <span className="whitespace-nowrap text-xs text-muted-foreground">
-                {new Date(a.created_at).toLocaleString("pt-BR")}
-              </span>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      {options.length === 0 && (
+        <p className="text-center text-muted-foreground">
+          Nenhum módulo liberado para o seu acesso ainda. Fale com o administrador.
+        </p>
+      )}
     </div>
   );
 }

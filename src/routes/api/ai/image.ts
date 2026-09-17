@@ -45,19 +45,19 @@ export const Route = createFileRoute("/api/ai/image")({
           size?: "1024x1024" | "1536x1024";
         };
         if (!body.prompt?.trim()) return new Response("Descreva a imagem", { status: 400 });
-        const lovableKey = process.env["LOVABLE_API_KEY"];
-        if (!lovableKey) return new Response("IA não configurada", { status: 401 });
+        const openaiKey = process.env["OPENAI_API_KEY"];
+        if (!openaiKey) return new Response("IA não configurada", { status: 401 });
 
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+        const response = await fetch("https://api.openai.com/v1/images/generations", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Lovable-API-Key": lovableKey,
+            Authorization: `Bearer ${openaiKey}`,
           },
           body: JSON.stringify({
-            model: "openai/gpt-image-2.5-sunburst",
+            model: "dall-e-3",
             prompt: body.prompt,
-            size: body.size ?? "1024x1024",
+            size: body.size === "1536x1024" ? "1792x1024" : "1024x1024",
             response_format: "b64_json",
           }),
         });
