@@ -41,46 +41,92 @@ export const Route = createFileRoute("/api/ai/chat")({
           stream?: boolean;
         };
 
-        if (!process.env["OPENAI_API_KEY"]) {
-          return new Response("Serviço de IA não configurado", { status: 503 });
+        const systemPrompt =
+          body.system ??
+          "Você é o assistente do painel, responde sempre em português do Brasil, de forma direta e prática.";
+        const messages = [{ role: "system", content: systemPrompt }, ...body.messages];
+        const wantStream = body.stream !== false;
+
+        // Provedor de IA: "free" (padrão, sem chave nenhuma) ou "openai" (exige OPENAI_API_KEY).
+        // Para usar OpenAI, defina no Netlify: AI_PROVIDER=openai
+        const provider = (process.env["AI_PROVIDER"] || "free").toLowerCase();
+        const useOpenAI = provider === "openai" && !!process.env["OPENAI_API_KEY"];
+
+        if (useOpenAI) {
+          const res = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env["OPENAI_API_KEY"] ?? ""}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ model: "gpt-4o-mini", stream: wantStream, messages }),
+          });
+          if (!res.ok) {
+            const detail = await res.text();
+            return new Response(detail || "Falha na IA", { status: res.status });
+          }
+          if (!wantStream) {
+            const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+            return new Response(json.choices?.[0]?.message?.content ?? "", {
+              headers: { "content-type": "text/plain; charset=utf-8" },
+            });
+          }
+          return new Response(res.body, {
+            headers: {
+              "content-type": "text/event-stream",
+              "cache-control": "no-cache",
+              connection: "keep-alive",
+            },
+          });
         }
 
-        const res = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env["OPENAI_API_KEY"] ?? ""}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            stream: body.stream !== false,
-            messages: [
-              {
-                role: "system",
-                content:
-                  body.system ??
-                  "Você é o assistente do painel, responde sempre em português do Brasil, de forma direta e prática.",
-              },
-              ...body.messages,
-            ],
-          }),
-        });
-
-        if (!res.ok) {
-          const detail = await res.text();
-          return new Response(detail || "Falha na IA", { status: res.status });
+        // Provedor GRATUITO (Pollinations) — não precisa de chave nem de configuração no Netlify.
+        let text = "";
+        try {
+          const res = await fetch("https://text.pollinations.ai/openai", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "openai", messages, stream: false }),
+          });
+          if (res.ok) {
+            const ct = res.headers.get("content-type") ?? "";
+            if (ct.includes("application/json")) {
+              const json = (await res.json()) as {
+                choices?: { message?: { content?: string } }[];
+              };
+              text = json.choices?.[0]?.message?.content ?? "";
+            } else {
+              text = await res.text();
+            }
+          }
+        } catch {
+          /* cai no aviso de indisponibilidade abaixo */
         }
 
-        if (body.stream === false) {
-          const json = (await res.json()) as {
-            choices?: { message?: { content?: string } }[];
-          };
-          return new Response(json.choices?.[0]?.message?.content ?? "", {
+        if (!text.trim()) {
+          return new Response(
+            "A IA gratuita está indisponível no momento. Tente novamente em instantes.",
+            { status: 503 },
+          );
+        }
+
+        if (!wantStream) {
+          return new Response(text, {
             headers: { "content-type": "text/plain; charset=utf-8" },
           });
         }
 
-        return new Response(res.body, {
+        // Reempacota a resposta no formato SSE da OpenAI para o front (aiStream) funcionar igual.
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          start(controller) {
+            const chunk = { choices: [{ delta: { content: text } }] };
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(chunk)}\n\n`));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+            controller.close();
+          },
+        });
+        return new Response(stream, {
           headers: {
             "content-type": "text/event-stream",
             "cache-control": "no-cache",

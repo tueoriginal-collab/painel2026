@@ -122,23 +122,57 @@ function Usuarios() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Módulos</Label>
-                  {MODULES.map((m) => (
-                    <label key={m.key} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={form.modules.includes(m.key)}
-                        onCheckedChange={(v) =>
-                          setForm({
-                            ...form,
-                            modules: v
-                              ? [...form.modules, m.key]
-                              : form.modules.filter((x) => x !== m.key),
-                          })
-                        }
-                      />
-                      {m.label}
-                    </label>
-                  ))}
+                  <div className="flex items-center justify-between">
+                    <Label>Módulos que este usuário pode usar</Label>
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-primary hover:underline"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          modules:
+                            form.modules.length === MODULES.length
+                              ? []
+                              : MODULES.map((m) => m.key),
+                        })
+                      }
+                    >
+                      {form.modules.length === MODULES.length
+                        ? "Limpar todos"
+                        : "Selecionar todos"}
+                    </button>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {MODULES.map((m) => {
+                      const checked = form.modules.includes(m.key);
+                      return (
+                        <label
+                          key={m.key}
+                          className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                            checked
+                              ? "border-primary/60 bg-primary/10 text-foreground"
+                              : "border-border/70 hover:border-primary/40"
+                          }`}
+                        >
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) =>
+                              setForm({
+                                ...form,
+                                modules: v
+                                  ? [...form.modules, m.key]
+                                  : form.modules.filter((x) => x !== m.key),
+                              })
+                            }
+                          />
+                          {m.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Deixe desmarcado o que o usuário não deve acessar.
+                  </p>
                 </div>
               </div>
               <DialogFooter>

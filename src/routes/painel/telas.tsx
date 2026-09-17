@@ -3,9 +3,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-  Copy,
+  ClipboardCopy,
+  Code2,
   CopyPlus,
   Download,
+  Link2,
   Pencil,
   Plus,
   QrCode,
@@ -53,6 +55,44 @@ type Screen = {
 };
 
 const BLANK = `<div style="position:fixed;inset:0;background:#000"></div>`;
+
+/** Moldura de celular realista com a tela renderizada dentro. */
+function PhonePreview({
+  html,
+  title,
+  scale = 0.46,
+  className = "",
+}: {
+  html: string;
+  title: string;
+  scale?: number;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`relative aspect-[9/19.5] overflow-hidden rounded-[26px] border border-white/10 bg-black shadow-[0_18px_45px_rgba(0,0,0,0.6),inset_0_0_0_2px_rgba(255,255,255,0.06)] ${className}`}
+    >
+      {/* brilho de vidro na borda */}
+      <span className="pointer-events-none absolute inset-0 z-20 rounded-[26px] shadow-[inset_0_1px_1px_rgba(255,255,255,0.25)]" />
+      {/* reflexo diagonal sutil */}
+      <span className="pointer-events-none absolute -left-1/3 top-0 z-20 h-full w-1/2 -skew-x-12 bg-gradient-to-r from-white/8 to-transparent opacity-40" />
+      {/* dynamic island */}
+      <span className="absolute left-1/2 top-2 z-30 h-[6px] w-[34%] -translate-x-1/2 rounded-full bg-black ring-1 ring-white/10" />
+      <iframe
+        title={title}
+        srcDoc={html}
+        tabIndex={-1}
+        scrolling="no"
+        className="pointer-events-none absolute left-0 top-0 origin-top-left border-0 bg-black"
+        style={{
+          width: `${100 / scale}%`,
+          height: `${100 / scale}%`,
+          transform: `scale(${scale})`,
+        }}
+      />
+    </div>
+  );
+}
 
 function Telas() {
   const { profile, isAdmin } = useAuth();
@@ -147,17 +187,16 @@ function Telas() {
       ? `${window.location.origin}/user/livescreen/${targetUsername}`
       : "";
 
-  const downloadViewer = () => {
-    if (!targetUsername || !link) return;
+  /** Copia o HTML da tela ao vivo para a área de transferência (para o usuário colar onde precisar). */
+  const copyViewerHtml = async () => {
+    if (!targetUsername || typeof window === "undefined") return;
     const viewerHtml = createLiveViewHtml(targetUsername, window.location.origin);
-    const blob = new Blob([viewerHtml], { type: "text/html;charset=utf-8" });
-    const objectUrl = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = objectUrl;
-    anchor.download = `Tela_Preta_${targetUsername}.html`;
-    anchor.click();
-    URL.revokeObjectURL(objectUrl);
-    toast.success(`HTML de @${targetUsername} baixado.`);
+    try {
+      await navigator.clipboard.writeText(viewerHtml);
+      toast.success("HTML copiado! Cole onde você precisar.");
+    } catch {
+      toast.error("Não consegui copiar. Tente de novo.");
+    }
   };
 
   if (!allowed) return <p className="text-muted-foreground">Você não tem acesso a este módulo.</p>;
@@ -172,11 +211,8 @@ function Telas() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={downloadViewer}
-          >
-            <Download className="mr-2 size-4" /> Baixar HTML de @{targetUsername}
+          <Button variant="outline" onClick={copyViewerHtml}>
+            <ClipboardCopy className="mr-2 size-4" /> Copiar HTML de @{targetUsername}
           </Button>
           <Button
             variant="outline"
@@ -187,7 +223,7 @@ function Telas() {
               toast.success("Link copiado.");
             }}
           >
-            <Copy className="size-4" />
+            <Link2 className="size-4" />
           </Button>
           <a
             href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`}
@@ -198,104 +234,112 @@ function Telas() {
               <QrCode className="mr-2 size-4" /> QR
             </Button>
           </a>
-          <Button
-            variant="outline"
-            onClick={() => {
-              const blob = new Blob([JSON.stringify(screens, null, 2)], {
-                type: "application/json",
-              });
-              const a = document.createElement("a");
-              a.href = URL.createObjectURL(blob);
-              a.download = "telas.json";
-              a.click();
-            }}
-          >
-            <Download className="mr-2 size-4" /> Exportar
-          </Button>
-          <Button variant="outline" onClick={() => fileRef.current?.click()}>
-            <Upload className="mr-2 size-4" /> Importar
-          </Button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json"
-            hidden
-            onChange={async (e) => {
-              const f = e.target.files?.[0];
-              if (!f) return;
-              const list = JSON.parse(await f.text()) as Screen[];
-              await supabase
-                .from("screens")
-                .insert(list.map((s) => ({ user_id: targetId, name: s.name, html: s.html })));
-              invalidate();
-              toast.success("Templates importados.");
-            }}
-          />
-          <Dialog
-            open={open}
-            onOpenChange={(v) => {
-              setOpen(v);
-              if (v && !editing) {
-                setName("");
-                setHtml(BLANK);
-              }
-              if (!v) setEditing(null);
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 size-4" /> Nova tela
+
+          {/* Ações de administrador: apenas o admin pode criar, importar/exportar e editar telas. */}
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const blob = new Blob([JSON.stringify(screens, null, 2)], {
+                    type: "application/json",
+                  });
+                  const a = document.createElement("a");
+                  a.href = URL.createObjectURL(blob);
+                  a.download = "telas.json";
+                  a.click();
+                }}
+              >
+                <Download className="mr-2 size-4" /> Exportar
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>{editing ? "Editar tela" : "Nova tela"}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nome</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gerar com IA</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="ex: tela preta com relógio branco no centro"
-                      value={aiPrompt}
-                      onChange={(e) => setAiPrompt(e.target.value)}
-                    />
-                    <Button variant="outline" onClick={gerarComIA} disabled={aiBusy}>
-                      <Sparkles className="size-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>HTML da tela</Label>
-                  <Textarea
-                    className="h-56 font-mono text-xs"
-                    value={html}
-                    onChange={(e) => setHtml(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Prévia</Label>
-                  <div className="flex items-center justify-center rounded-lg border border-border bg-[linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_8%,transparent),color-mix(in_oklab,var(--color-neon-purple)_8%,transparent))] py-6">
-                    <div className="relative h-[300px] w-[165px] overflow-hidden rounded-[22px] border-2 border-white/15 bg-black shadow-[0_10px_30px_rgba(0,0,0,0.55)]">
-                      <iframe
-                        title="previa"
-                        srcDoc={html}
-                        className="pointer-events-none h-[500px] w-[275px] origin-top-left border-0 bg-black"
-                        style={{ transform: "scale(0.6)" }}
-                      />
+              <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                <Upload className="mr-2 size-4" /> Importar
+              </Button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="application/json"
+                hidden
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const list = JSON.parse(await f.text()) as Screen[];
+                  await supabase
+                    .from("screens")
+                    .insert(list.map((s) => ({ user_id: targetId, name: s.name, html: s.html })));
+                  invalidate();
+                  toast.success("Templates importados.");
+                }}
+              />
+              <Dialog
+                open={open}
+                onOpenChange={(v) => {
+                  setOpen(v);
+                  if (v && !editing) {
+                    setName("");
+                    setHtml(BLANK);
+                  }
+                  if (!v) setEditing(null);
+                }}
+              >
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 size-4" /> Nova tela
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <DialogHeader>
+                    <DialogTitle>{editing ? "Editar tela" : "Nova tela"}</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-5 md:grid-cols-[1fr_auto]">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>Nome</Label>
+                        <Input value={name} onChange={(e) => setName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Gerar com IA</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="ex: tela preta com relógio branco no centro"
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                          />
+                          <Button variant="outline" onClick={gerarComIA} disabled={aiBusy}>
+                            <Sparkles className="size-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="flex items-center gap-1.5">
+                          <Code2 className="size-3.5" /> HTML da tela
+                        </Label>
+                        <Textarea
+                          className="h-64 font-mono text-xs"
+                          value={html}
+                          onChange={(e) => setHtml(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Prévia</Label>
+                      <div className="flex items-center justify-center rounded-2xl border border-border/70 bg-[radial-gradient(90%_120%_at_50%_-10%,color-mix(in_oklab,var(--color-primary)_16%,transparent),transparent_55%),linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_7%,transparent),color-mix(in_oklab,var(--color-neon-purple)_9%,transparent))] p-6">
+                        <PhonePreview
+                          html={html}
+                          title="previa"
+                          scale={0.5}
+                          className="w-[150px]"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={save}>Salvar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+                  <DialogFooter>
+                    <Button onClick={save}>Salvar</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
+          )}
         </div>
       </header>
 
@@ -315,7 +359,7 @@ function Telas() {
             <span className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[3px] rounded-t-2xl bg-gradient-to-r from-primary via-[var(--color-neon-purple)] to-primary opacity-70 transition-opacity duration-300 group-hover:opacity-100" />
 
             {/* área de preview — moldura de celular com a tela real */}
-            <div className="relative z-10 flex h-56 items-center justify-center overflow-hidden border-b border-border/70 bg-[radial-gradient(80%_120%_at_50%_-10%,color-mix(in_oklab,var(--color-primary)_14%,transparent),transparent_55%),linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_7%,transparent),color-mix(in_oklab,var(--color-neon-purple)_9%,transparent))]">
+            <div className="relative z-10 flex items-center justify-center overflow-hidden border-b border-border/70 bg-[radial-gradient(80%_120%_at_50%_-10%,color-mix(in_oklab,var(--color-primary)_14%,transparent),transparent_55%),linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_7%,transparent),color-mix(in_oklab,var(--color-neon-purple)_9%,transparent))] px-6 py-7">
               <span className="absolute left-3 top-3 z-10 flex size-7 items-center justify-center rounded-lg border border-primary/40 bg-black/70 text-sm font-bold text-primary shadow-[0_0_10px_color-mix(in_oklab,var(--color-primary)_35%,transparent)] backdrop-blur">
                 {i + 1}
               </span>
@@ -328,18 +372,12 @@ function Telas() {
                   no ar
                 </span>
               )}
-              {/* celular */}
-              <div className="relative h-[182px] w-[100px] overflow-hidden rounded-[22px] border-[3px] border-white/20 bg-black shadow-[0_10px_30px_rgba(0,0,0,0.6),inset_0_0_0_1px_rgba(255,255,255,0.05)] transition-transform duration-300 group-hover:scale-[1.06]">
-                {/* notch */}
-                <span className="absolute left-1/2 top-1.5 z-10 h-1.5 w-10 -translate-x-1/2 rounded-full bg-white/25" />
-                <iframe
-                  title={s.name}
-                  srcDoc={s.html}
-                  tabIndex={-1}
-                  className="pointer-events-none h-[390px] w-[214px] origin-top-left border-0 bg-black"
-                  style={{ transform: "scale(0.467)" }}
-                />
-              </div>
+              <PhonePreview
+                html={s.html}
+                title={s.name}
+                scale={0.46}
+                className="w-[116px] transition-transform duration-300 group-hover:scale-[1.05]"
+              />
             </div>
 
             {/* nome + status */}
@@ -366,49 +404,54 @@ function Telas() {
               >
                 {s.is_active ? "Desativar" : "Ativar"}
               </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="rounded-lg"
-                aria-label="Editar tela"
-                title="Editar"
-                onClick={() => {
-                  setEditing(s);
-                  setName(s.name);
-                  setHtml(s.html);
-                  setOpen(true);
-                }}
-              >
-                <Pencil className="size-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="rounded-lg"
-                aria-label="Duplicar tela"
-                title="Duplicar"
-                onClick={async () => {
-                  await supabase
-                    .from("screens")
-                    .insert({ user_id: targetId, name: `${s.name} (cópia)`, html: s.html });
-                  invalidate();
-                }}
-              >
-                <CopyPlus className="size-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="outline"
-                className="rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
-                aria-label="Excluir tela"
-                title="Excluir"
-                onClick={async () => {
-                  await supabase.from("screens").delete().eq("id", s.id);
-                  invalidate();
-                }}
-              >
-                <Trash2 className="size-4" />
-              </Button>
+              {/* Editar / duplicar / excluir: apenas administrador. */}
+              {isAdmin && (
+                <>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="rounded-lg"
+                    aria-label="Editar tela"
+                    title="Editar"
+                    onClick={() => {
+                      setEditing(s);
+                      setName(s.name);
+                      setHtml(s.html);
+                      setOpen(true);
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="rounded-lg"
+                    aria-label="Duplicar tela"
+                    title="Duplicar"
+                    onClick={async () => {
+                      await supabase
+                        .from("screens")
+                        .insert({ user_id: targetId, name: `${s.name} (cópia)`, html: s.html });
+                      invalidate();
+                    }}
+                  >
+                    <CopyPlus className="size-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="rounded-lg text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    aria-label="Excluir tela"
+                    title="Excluir"
+                    onClick={async () => {
+                      await supabase.from("screens").delete().eq("id", s.id);
+                      invalidate();
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </>
+              )}
             </div>
           </Card>
         ))}
@@ -419,8 +462,14 @@ function Telas() {
             </span>
             <h3 className="text-base font-semibold text-foreground">Nenhuma tela salva ainda</h3>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-              Clique em <span className="font-medium text-foreground">Nova tela</span> para criar a
-              sua primeira tela preta.
+              {isAdmin ? (
+                <>
+                  Clique em <span className="font-medium text-foreground">Nova tela</span> para criar
+                  a primeira tela preta.
+                </>
+              ) : (
+                <>O administrador ainda não adicionou telas para você.</>
+              )}
             </p>
           </div>
         )}
