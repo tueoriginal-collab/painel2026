@@ -1,29 +1,33 @@
-# Welcome to your Lovable project
+# Ghost Copier — Painel
 
-This project was built with [Lovable](https://lovable.dev).
+Painel web (TanStack Start + React + TypeScript + Tailwind CSS) com telas ao
+vivo, Play Fake, assistente IA, tela live fullscreen para celular e módulo de
+QR Code para APK.
 
-## Build with Lovable
-
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
-
-## Built with
+## Stack
 
 - TanStack Start
 - TypeScript
 - React
 - Tailwind CSS
+- Supabase (banco, auth e storage)
+
+## Variáveis de ambiente (Netlify)
+
+Configure em **Site settings → Environment variables**:
+
+| Variável | Uso |
+| --- | --- |
+| `VITE_SUPABASE_URL` | URL do projeto Supabase (cliente, build) |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publishable/anon (cliente, build) |
+| `SUPABASE_URL` | URL do projeto Supabase (servidor) |
+| `SUPABASE_PUBLISHABLE_KEY` | Chave publishable/anon (servidor) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Chave service_role — **necessária para criar logins** |
+
+Após adicionar/alterar variáveis, faça um novo deploy (Trigger deploy → Clear
+cache and deploy) para elas entrarem no build.
+
+## Banco de dados
+
+As migrações ficam em `supabase/migrations/`. Rode o SQL manualmente no
+**Supabase → SQL Editor** (o Netlify não roda migrações automaticamente).
