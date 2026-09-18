@@ -14,6 +14,7 @@ export const MODULES = [
   { key: "playfake", label: "Play Fake" },
   { key: "telas", label: "Telas Pretas" },
   { key: "ia", label: "Assistente IA" },
+  { key: "apk", label: "QR Code APK" },
 ] as const;
 
 export const emailFor = (username: string) =>

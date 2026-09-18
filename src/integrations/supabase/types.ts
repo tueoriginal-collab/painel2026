@@ -38,6 +38,39 @@ export type Database = {
         }
         Relationships: []
       }
+      apks: {
+        Row: {
+          created_at: string
+          file_path: string
+          id: string
+          name: string
+          public_url: string
+          size: number
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_path: string
+          id?: string
+          name: string
+          public_url: string
+          size?: number
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_path?: string
+          id?: string
+          name?: string
+          public_url?: string
+          size?: number
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
       playfake_apps: {
         Row: {
           created_at: string

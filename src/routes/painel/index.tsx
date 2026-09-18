@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, MonitorPlay, Sparkles, Store, Users } from "lucide-react";
+import { ArrowRight, MonitorPlay, Sparkles, Store, Users, QrCode } from "lucide-react";
 
 import { hasModule, useAuth } from "@/lib/auth";
 import { Card } from "@/components/ui/card";
@@ -39,6 +39,13 @@ function Home() {
       desc: "Gere textos, ideias e conteúdo na hora.",
       icon: Sparkles,
       mod: "ia" as string | null,
+    },
+    {
+      to: "/painel/apk",
+      label: "QR Code APK",
+      desc: "Envie um APK e gere o QR de download direto.",
+      icon: QrCode,
+      mod: "apk" as string | null,
     },
     ...(isAdmin
       ? [

@@ -56,20 +56,44 @@ type Screen = {
 
 const BLANK = `<div style="position:fixed;inset:0;background:#000"></div>`;
 
-/** Moldura de celular realista com a tela renderizada dentro. */
+/** Moldura de celular realista com a tela renderizada dentro, em escala fiel.
+ *  Renderiza a tela numa resolução de referência (390×845, igual a um celular)
+ *  e reduz por transform:scale conforme a largura do card, garantindo alinhamento. */
 function PhonePreview({
   html,
   title,
-  scale = 0.46,
   className = "",
+  baseWidth = 390,
 }: {
   html: string;
   title: string;
-  scale?: number;
   className?: string;
+  baseWidth?: number;
 }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+  const baseHeight = Math.round((baseWidth * 19.5) / 9);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => setScale(el.clientWidth / baseWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [baseWidth]);
+
+  // Fragmentos (sem <html>) recebem um wrapper que centraliza e ocupa a tela toda,
+  // igual ao visualizador ao vivo. Documentos completos são usados como estão.
+  const isFullDoc = /<!doctype|<html[\s>]/i.test(html);
+  const framedHtml = isFullDoc
+    ? html
+    : `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#000}body{display:flex;align-items:center;justify-content:center}</style></head><body>${html}</body></html>`;
+
   return (
     <div
+      ref={wrapRef}
       className={`relative aspect-[9/19.5] overflow-hidden rounded-[26px] border border-white/10 bg-black shadow-[0_18px_45px_rgba(0,0,0,0.6),inset_0_0_0_2px_rgba(255,255,255,0.06)] ${className}`}
     >
       {/* brilho de vidro na borda */}
@@ -78,18 +102,21 @@ function PhonePreview({
       <span className="pointer-events-none absolute -left-1/3 top-0 z-20 h-full w-1/2 -skew-x-12 bg-gradient-to-r from-white/8 to-transparent opacity-40" />
       {/* dynamic island */}
       <span className="absolute left-1/2 top-2 z-30 h-[6px] w-[34%] -translate-x-1/2 rounded-full bg-black ring-1 ring-white/10" />
-      <iframe
-        title={title}
-        srcDoc={html}
-        tabIndex={-1}
-        scrolling="no"
-        className="pointer-events-none absolute left-0 top-0 origin-top-left border-0 bg-black"
-        style={{
-          width: `${100 / scale}%`,
-          height: `${100 / scale}%`,
-          transform: `scale(${scale})`,
-        }}
-      />
+      {scale > 0 && (
+        <iframe
+          title={title}
+          srcDoc={framedHtml}
+          tabIndex={-1}
+          scrolling="no"
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 origin-top-left border-0 bg-black"
+          style={{
+            width: `${baseWidth}px`,
+            height: `${baseHeight}px`,
+            transform: `scale(${scale})`,
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -324,12 +351,7 @@ function Telas() {
                     <div className="space-y-2">
                       <Label>Prévia</Label>
                       <div className="flex items-center justify-center rounded-2xl border border-border/70 bg-[radial-gradient(90%_120%_at_50%_-10%,color-mix(in_oklab,var(--color-primary)_16%,transparent),transparent_55%),linear-gradient(135deg,color-mix(in_oklab,var(--color-primary)_7%,transparent),color-mix(in_oklab,var(--color-neon-purple)_9%,transparent))] p-6">
-                        <PhonePreview
-                          html={html}
-                          title="previa"
-                          scale={0.5}
-                          className="w-[150px]"
-                        />
+                        <PhonePreview html={html} title="previa" className="w-[150px]" />
                       </div>
                     </div>
                   </div>
@@ -375,7 +397,6 @@ function Telas() {
               <PhonePreview
                 html={s.html}
                 title={s.name}
-                scale={0.46}
                 className="w-[116px] transition-transform duration-300 group-hover:scale-[1.05]"
               />
             </div>

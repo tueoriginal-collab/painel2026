@@ -15,6 +15,7 @@ import { Route as PainelIndexRouteImport } from './routes/painel/index'
 import { Route as PainelIaRouteImport } from './routes/painel/ia'
 import { Route as PainelPlayfakeRouteImport } from './routes/painel/playfake'
 import { Route as PainelTelasRouteImport } from './routes/painel/telas'
+import { Route as PainelApkRouteImport } from './routes/painel/apk'
 import { Route as PainelUsuariosRouteImport } from './routes/painel/usuarios'
 import { Route as ApiAiChatRouteImport } from './routes/api/ai/chat'
 import { Route as ApiAiImageRouteImport } from './routes/api/ai/image'
@@ -49,6 +50,11 @@ const PainelPlayfakeRoute = PainelPlayfakeRouteImport.update({
 const PainelTelasRoute = PainelTelasRouteImport.update({
   id: '/telas',
   path: '/telas',
+  getParentRoute: () => PainelRoute,
+} as any)
+const PainelApkRoute = PainelApkRouteImport.update({
+  id: '/apk',
+  path: '/apk',
   getParentRoute: () => PainelRoute,
 } as any)
 const PainelUsuariosRoute = PainelUsuariosRouteImport.update({
@@ -218,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PainelUsuariosRouteImport
       parentRoute: typeof PainelRoute
     }
+    '/painel/apk': {
+      id: '/painel/apk'
+      path: '/apk'
+      fullPath: '/painel/apk'
+      preLoaderRoute: typeof PainelApkRouteImport
+      parentRoute: typeof PainelRoute
+    }
     '/api/ai/chat': {
       id: '/api/ai/chat'
       path: '/api/ai/chat'
@@ -253,6 +266,7 @@ interface PainelRouteChildren {
   PainelIaRoute: typeof PainelIaRoute
   PainelPlayfakeRoute: typeof PainelPlayfakeRoute
   PainelTelasRoute: typeof PainelTelasRoute
+  PainelApkRoute: typeof PainelApkRoute
   PainelUsuariosRoute: typeof PainelUsuariosRoute
   PainelIndexRoute: typeof PainelIndexRoute
 }
@@ -261,6 +275,7 @@ const PainelRouteChildren: PainelRouteChildren = {
   PainelIaRoute: PainelIaRoute,
   PainelPlayfakeRoute: PainelPlayfakeRoute,
   PainelTelasRoute: PainelTelasRoute,
+  PainelApkRoute: PainelApkRoute,
   PainelUsuariosRoute: PainelUsuariosRoute,
   PainelIndexRoute: PainelIndexRoute,
 }

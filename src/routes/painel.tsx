@@ -11,6 +11,7 @@ import {
   Sun,
   EyeOff,
   Search,
+  QrCode,
 } from "lucide-react";
 
 import { hasModule, useAuth } from "@/lib/auth";
@@ -59,6 +60,7 @@ function PainelLayout() {
     { to: "/painel/telas", label: "Telas Pretas", icon: MonitorPlay, mod: "telas" },
     { to: "/painel/playfake", label: "Play Fake", icon: Store, mod: "playfake" },
     { to: "/painel/ia", label: "Assistente IA", icon: Sparkles, mod: "ia" },
+    { to: "/painel/apk", label: "QR Code APK", icon: QrCode, mod: "apk" },
     ...(isAdmin ? [{ to: "/painel/usuarios", label: "Usuários", icon: Users, mod: null }] : []),
   ].filter((i) => !i.mod || hasModule(profile, isAdmin, i.mod));
 
