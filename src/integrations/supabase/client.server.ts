@@ -41,7 +41,7 @@ function createSupabaseAdminClient() {
       ...(!SUPABASE_URL ? ["SUPABASE_URL"] : []),
       ...(!SUPABASE_SERVICE_ROLE_KEY ? ["SUPABASE_SERVICE_ROLE_KEY"] : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(", ")}. Connect Supabase in Lovable Cloud.`;
+    const message = `Variável(is) de ambiente do Supabase ausente(s): ${missing.join(", ")}. Configure-as no Netlify (ou no seu .env).`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }

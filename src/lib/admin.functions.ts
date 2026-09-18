@@ -2,7 +2,14 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const emailFor = (u: string) => `${u.toLowerCase()}@painel.local`;
+// Normaliza o nome de usuário EXATAMENTE como a tela de login (src/lib/auth.tsx),
+// para que o e-mail técnico gerado aqui e o usado no login sempre coincidam.
+const normalizeUsername = (u: string) =>
+  u
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "");
+const emailFor = (u: string) => `${normalizeUsername(u)}@painel.local`;
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -23,7 +30,7 @@ async function assertAdmin(userId: string) {
 
 /** Cria (uma vez) o login admin e remove qualquer outro login legado. */
 export const bootstrapAdmin = createServerFn({ method: "POST" }).handler(async () => {
-  const ADMIN_USERNAME = process.env["ADMIN_USERNAME"]?.trim().toLowerCase();
+  const ADMIN_USERNAME = normalizeUsername(process.env["ADMIN_USERNAME"] ?? "");
   const ADMIN_PASSWORD = process.env["ADMIN_PASSWORD"];
   if (!ADMIN_USERNAME || !ADMIN_PASSWORD) return { ok: true, created: false };
   const db = await admin();
@@ -78,7 +85,8 @@ export const createUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = await assertAdmin(context.userId);
-    const username = data.username.trim().toLowerCase();
+    const username = normalizeUsername(data.username);
+    if (username.length < 2) throw new Error("Nome de usuário inválido.");
     const { data: created, error } = await db.auth.admin.createUser({
       email: emailFor(username),
       password: data.password,
@@ -155,7 +163,8 @@ export const duplicateUser = createServerFn({ method: "POST" })
     const db = await assertAdmin(context.userId);
     const { data: src } = await db.from("profiles").select("*").eq("id", data.id).maybeSingle();
     if (!src) throw new Error("Usuário de origem não encontrado.");
-    const username = data.username.trim().toLowerCase();
+    const username = normalizeUsername(data.username);
+    if (username.length < 2) throw new Error("Nome de usuário inválido.");
     const { data: created, error } = await db.auth.admin.createUser({
       email: emailFor(username),
       password: data.password,
